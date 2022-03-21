@@ -18,6 +18,7 @@ const std::string kVersionFilename{"/version"};
 const std::string kOSPath{"/etc/os-release"};
 const std::string kPasswordPath{"/etc/passwd"};
 
+bool AllDigit(std::string &str); //decide if str is all in digits
 // System
 float MemoryUtilization();
 long UpTime();

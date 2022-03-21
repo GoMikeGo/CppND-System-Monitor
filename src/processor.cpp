@@ -6,12 +6,14 @@
 // Return the real time CPU utilization
 
 float Processor::Utilization() { 
-  long active = LinuxParser::ActiveJiffies();
+  long total = LinuxParser::Jiffies();
   long idle = LinuxParser::IdleJiffies();
-  float pcnt = float(active - activeJiffies) / float(active + idle - activeJiffies - idleJiffies) * 100.0;
+  float idleD = float(idle) - float(idleJiffies);
+  float totalD = float(total) - float (totalJiffies);
+  float pcnt = (totalD - idleD) / totalD;
   
   idleJiffies = idle;
-  activeJiffies = active;
+  totalJiffies = total;
 
   return pcnt;
 }

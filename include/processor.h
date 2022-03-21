@@ -6,8 +6,8 @@ class Processor {
   float Utilization();  // See src/processor.cpp
 
  private:
-  long activeJiffies = 0;
-  long idleJiffies = 0;
+  long totalJiffies;
+  long idleJiffies;
 };
 
 #endif

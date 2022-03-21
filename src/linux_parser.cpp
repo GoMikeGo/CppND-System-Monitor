@@ -12,6 +12,10 @@ using std::string;
 using std::to_string;
 using std::vector;
 
+bool LinuxParser::AllDigit(string &str) {
+  return  std::all_of(str.begin(), str.end(), isdigit);
+}
+
 string LinuxParser::OperatingSystem() {
   string line;
   string key;
@@ -55,7 +59,7 @@ vector<int> LinuxParser::Pids() {
     if (file->d_type == DT_DIR) {
       // Is every character of the name a digit?
       string filename(file->d_name);
-      if (std::all_of(filename.begin(), filename.end(), isdigit)) {
+      if (AllDigit(filename)) {
         int pid = stoi(filename);
         pids.push_back(pid);
       }
@@ -104,10 +108,7 @@ long LinuxParser::UpTime() {
 
 // Read and return the number of jiffies for the system
 long LinuxParser::Jiffies() { 
-  vector<string> jiffies = LinuxParser::CpuUtilization();
-  return stol(jiffies[kSystem_])
-       + stol(jiffies[kIRQ_])
-       + stol(jiffies[kSoftIRQ_]);
+  return ActiveJiffies() + IdleJiffies();
 }
 
 // Read and return the number of active jiffies for a PID
@@ -123,24 +124,28 @@ long LinuxParser::ActiveJiffies(int pid) {
       i++;
     
   }
-  return stol(procInfo[kUtime_]) + stol(procInfo[kStime_]) + stol(procInfo[kCutime_]) + stol(procInfo[kCstime_]);
+  return (AllDigit(procInfo[kUtime_]) ? stol(procInfo[kUtime_]) : 0)
+       + (AllDigit(procInfo[kStime_]) ? stol(procInfo[kStime_]) : 0)
+       + (AllDigit(procInfo[kCutime_]) ? stol(procInfo[kCutime_]) : 0)
+       + (AllDigit(procInfo[kCstime_]) ? stol(procInfo[kCstime_]) : 0);
 }
 
 // Read and return the number of active jiffies for the system
 long LinuxParser::ActiveJiffies() {
   vector<string> jiffies = LinuxParser::CpuUtilization();
-  return stol(jiffies[kUser_]) 
-       + stol(jiffies[kNice_])
-       + stol(jiffies[kSystem_])
-       + stol(jiffies[kIRQ_])
-       + stol(jiffies[kSoftIRQ_])
-       + stol(jiffies[kSteal_]);
+  return (AllDigit(jiffies[kUser_]) ? stol(jiffies[kUser_]) : 0) 
+       + (AllDigit(jiffies[kNice_]) ? stol(jiffies[kNice_]) : 0)
+       + (AllDigit(jiffies[kSystem_]) ? stol(jiffies[kSystem_]) : 0)
+       + (AllDigit(jiffies[kIRQ_]) ? stol(jiffies[kIRQ_]) : 0)
+       + (AllDigit(jiffies[kSoftIRQ_]) ? stol(jiffies[kSoftIRQ_]) : 0)
+       + (AllDigit(jiffies[kSteal_]) ? stol(jiffies[kSteal_]) : 0);
 }
 
 // Read and return the number of idle jiffies for the system
 long LinuxParser::IdleJiffies() { 
   vector<string> jiffies = LinuxParser::CpuUtilization();
-  return stol(jiffies[kIdle_]) + stol(jiffies[kIOwait_]);
+  return (AllDigit(jiffies[kIdle_]) ? stol(jiffies[kIdle_]) : 0)
+       + (AllDigit(jiffies[kIOwait_]) ? stol(jiffies[kIOwait_]) : 0);
 }
 
 // Read and return CPU utilization
@@ -224,7 +229,7 @@ string LinuxParser::Ram(int pid) {
       std::istringstream linestream(line);
       while (linestream >> key >> value) {
         if (key == "VmSize:") {
-          return std::to_string(stoi(value)/1000);
+          return std::to_string((AllDigit(value) ? stoi(value) : 0)/1000);
         }
       }
     }
@@ -284,7 +289,7 @@ long LinuxParser::UpTime(int pid) {
     int i = 1;
     while (i <= kStarttime_ && linestream >> value) {
       if (i == kStarttime_)
-        return LinuxParser::UpTime() - std::stol(value) / sysconf(_SC_CLK_TCK);
+        return LinuxParser::UpTime() - (AllDigit(value) ? std::stol(value) : 0) / sysconf(_SC_CLK_TCK);
       i++;
     }
   }
