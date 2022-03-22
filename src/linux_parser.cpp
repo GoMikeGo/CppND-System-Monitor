@@ -13,7 +13,7 @@ using std::to_string;
 using std::vector;
 
 bool LinuxParser::AllDigit(string &str) {
-  return  std::all_of(str.begin(), str.end(), isdigit);
+  return  std::all_of(str.begin(), str.end(), isdigit) && !str.empty();
 }
 
 string LinuxParser::OperatingSystem() {
@@ -28,7 +28,7 @@ string LinuxParser::OperatingSystem() {
       std::replace(line.begin(), line.end(), '"', ' ');
       std::istringstream linestream(line);
       while (linestream >> key >> value) {
-        if (key == "PRETTY_NAME") {
+        if (key == filterOSversion) {
           std::replace(value.begin(), value.end(), '_', ' ');
           return value;
         }
@@ -71,19 +71,18 @@ vector<int> LinuxParser::Pids() {
 
 // Read and return the system memory utilization
 float LinuxParser::MemoryUtilization() { 
-  int total_mem, free_mem;
+  int total_mem(0), free_mem(0), value;
   string line, key;
-  std::ifstream stream(kProcDirectory + kMeminfoFilename);
-  if (stream.is_open()) {
-    {
-        std::getline(stream, line);
-        std::istringstream linestream(line);
-        linestream >> key >> total_mem;
-    }
-    {
-        std::getline(stream, line);
-        std::istringstream linestream(line);
-        linestream >> key >> free_mem;
+  std::ifstream filestream(kProcDirectory + kMeminfoFilename);
+  if (filestream.is_open()) {
+    while (std::getline(filestream, line)) {
+      std::istringstream linestream(line);
+      while (linestream >> key >> value) {
+        if (key == filterMemTotalString) 
+          total_mem = value;
+        else if (key == filterMemFreeString) 
+          free_mem = value;
+      }
     }
   }
     
@@ -95,15 +94,15 @@ float LinuxParser::MemoryUtilization() {
 // Read and return the system uptime
 long LinuxParser::UpTime() {
   string line, key;
-  long t_system, t_idle;
+  long t_system;
   std::ifstream stream(kProcDirectory + kUptimeFilename);
   if (stream.is_open()) {
     std::getline(stream, line);
     std::istringstream linestream(line);
-    linestream >> key >> t_system >> t_idle;
+    linestream >> key >> t_system;
   }
   
-  return t_system + t_idle; 
+  return t_system; 
 }
 
 // Read and return the number of jiffies for the system
@@ -152,11 +151,13 @@ long LinuxParser::IdleJiffies() {
 vector<string> LinuxParser::CpuUtilization() { 
   string line, key;
   vector<string> jiffies(kGuestNice_ + 1);
-  std::ifstream stream(kProcDirectory + kStatFilename);
-  if (stream.is_open()) {
-    std::getline(stream, line);
-    std::istringstream linestream(line);
-    linestream >> key >> jiffies[kUser_]
+  std::ifstream filestream(kProcDirectory + kStatFilename);
+  if (filestream.is_open()) {
+    while (std::getline(filestream, line)) {
+      std::istringstream linestream(line);
+      while (linestream >> key) {
+        if (key == filterCpu) {
+           linestream >> jiffies[kUser_]
                       >> jiffies[kNice_]
                       >> jiffies[kSystem_]
                       >> jiffies[kIdle_]
@@ -166,6 +167,9 @@ vector<string> LinuxParser::CpuUtilization() {
                       >> jiffies[kSteal_]
                       >> jiffies[kGuest_]
                       >> jiffies[kGuestNice_];
+        }
+      }
+    }
   }
   return jiffies; 
 }
@@ -180,7 +184,7 @@ int LinuxParser::TotalProcesses() {
     while (std::getline(filestream, line)) {
       std::istringstream linestream(line);
       while (linestream >> key >> value) {
-        if (key == "processes") {
+        if (key == filterProcesses) {
           return value;
         }
       }
@@ -199,7 +203,7 @@ int LinuxParser::RunningProcesses() {
     while (std::getline(filestream, line)) {
       std::istringstream linestream(line);
       while (linestream >> key >> value) {
-        if (key == "procs_running") {
+        if (key == filterRunningProcesses) {
           return value;
         }
       }
@@ -228,8 +232,11 @@ string LinuxParser::Ram(int pid) {
     while (std::getline(filestream, line)) {
       std::istringstream linestream(line);
       while (linestream >> key >> value) {
-        if (key == "VmSize:") {
-          return std::to_string((AllDigit(value) ? stoi(value) : 0)/1000);
+        if (key == filterProcMem) {
+          if(AllDigit(value))
+            value = value.length() > 3 ? value.substr(0, value.length() - 3) + "." + value.substr(value.length() - 3, 3)
+                                       : "0." + value.insert(0, 3 - value.length(), '0');      
+          return value;
         }
       }
     }
@@ -247,7 +254,7 @@ string LinuxParser::Uid(int pid) {
     while (std::getline(filestream, line)) {
       std::istringstream linestream(line);
       while (linestream >> key >> value) {
-        if (key == "Uid:") {
+        if (key == filterUID) {
           return value;
         }
       }

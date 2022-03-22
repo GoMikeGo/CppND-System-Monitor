@@ -33,7 +33,7 @@ float Process::CpuUtilization() {
 
 // Return the command that generated this process
 string Process::Command() {
-  return command; 
+  return command.length() > 40 ? command.substr(0, 40) + "..." : command; 
 }
 
 // TODO: Return this process's memory utilization
