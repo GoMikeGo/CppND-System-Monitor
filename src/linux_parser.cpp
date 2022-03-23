@@ -99,7 +99,7 @@ long LinuxParser::UpTime() {
   if (stream.is_open()) {
     std::getline(stream, line);
     std::istringstream linestream(line);
-    linestream >> key >> t_system;
+    linestream >> t_system;
   }
   
   return t_system; 
